@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const URI = 'mongodb://localhost:27017/packbook_2021'
+const URI = 'mongodb://localhost:27017/pacbook_2022'
 
     mongoose.connect(URI, {
       useMongoClient: true

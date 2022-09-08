@@ -4,7 +4,7 @@ const Schema = mongoose.Schema;
 const PaletasKmSchema = new Schema({
     _id: Schema.ObjectId,
     tramo: { type: String },
-    sentido: { type: Number },
+    sentido: [],
     carril: { type: Number },
     cadReal: { type: String },
     cadGeo: { type: String },
@@ -12,5 +12,5 @@ const PaletasKmSchema = new Schema({
     
 });
 
-const emp = mongoose.model('paletaskm', PaletasKmSchema);
+const emp = mongoose.model('paletaskm', PaletasKmSchema, 'paletaskm');
 module.exports= emp;

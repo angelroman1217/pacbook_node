@@ -169,16 +169,12 @@ var APIs = {
       var tramo = req.query.tramo;
       var sentido = req.query.sentido;
       
-      const kms = await PaletasKm.find(); 
-
-      var key = 0;
+      const kms = await PaletasKm.find({"tramo": tramo, "sentido" : parseInt(sentido)}).sort("cadGeo"); 
       for (const value of kms) {
-        console.log(kms[key]._doc.descripcion)
+        value._doc.descripcion = value._doc.descripcion.replace("Poste ", "");
       }
-
+      res.json(kms);
     }
-
-
 }
 
 
