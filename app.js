@@ -6,12 +6,11 @@ var logger = require('morgan');
 const cors = require('cors')
 
 var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
 
 var app = express();
 
 //data base connection test
-const { mongoose } = require('./database')
+//const { mongoose } = require('./database')
 
 //port 5500 select
 const port = 5500;
@@ -32,7 +31,6 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
-app.use('/users', usersRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
