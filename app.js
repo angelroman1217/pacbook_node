@@ -10,7 +10,7 @@ var indexRouter = require('./routes/index');
 var app = express();
 
 //data base connection test
-//const { mongoose } = require('./database')
+const { mongoose } = require('./database')
 
 //port 5500 select
 const port = 5500;

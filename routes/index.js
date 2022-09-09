@@ -9,9 +9,9 @@ router.get('/', function(req, res, next) {
 });
 
 //APIs
-//router.get('/api/mapByEdo/get', APIs.mapByEdo)
-//router.get('/api/getRutasByEdo', APIs.getRutasByEdo)
-//router.get('/api/trazo/get', APIs.getTrazoByStudy)
-//router.get('/api/road/paletaskm', APIs.getByRoad)
+router.get('/api/mapByEdo/get', APIs.mapByEdo)
+router.get('/api/getRutasByEdo', APIs.getRutasByEdo)
+router.get('/api/trazo/get', APIs.getTrazoByStudy)
+router.get('/api/road/paletaskm', APIs.getByRoad)
 
 module.exports = router;
