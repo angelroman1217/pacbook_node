@@ -3,6 +3,9 @@ var router = express.Router();
 
 var validation = {
   IRI(value, red = null) {
+    if (value == "NO_DATA") {
+      value = 0;
+    }
     var valoracion = null;
     if (red === 'A' || red === 'C') {
       if (value < 1.8) {

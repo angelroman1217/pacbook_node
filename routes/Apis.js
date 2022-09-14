@@ -4,18 +4,14 @@ var router = express.Router();
 const Carretera = require('../models/Carretera');
 const History = require('../models/History');
 const PaletasKm = require('../models/PaletasKm');
+const Imagenes = require('../models/Imagenes');
 
 const Proceso = require('./Proceso');
 const Validacion = require('./Validacion');
 const Rangos = require('./Rangos');
 
 var APIs = {
-    getRutasByEdo: async(req, res) => {
-      var edo = req.query.edo
-      const query = {'estado' : edo, 'status' : true}
-      const rutas = await Carretera.find().where(query).distinct('ruta');
-      res.json(rutas);
-    },
+    //APIs Principales
     mapByEdo: async(req, res) => {
       var edo = req.query.edo
       var ruta = req.query.ruta
@@ -27,7 +23,7 @@ var APIs = {
       };
       res.json(js) 
     },
-    getInfoRoad  : async(edo, red, ruta) => {
+    getInfoRoad: async(edo, red, ruta) => {
       const query = {'estado' : edo, 'red' : red, 'status' : true}
       if (ruta != 'All') {
         query.ruta = ruta;
@@ -79,6 +75,12 @@ var APIs = {
       return  roads;
 
     },
+    getRutasByEdo: async(req, res) => {
+      var edo = req.query.edo
+      const query = {'estado' : edo, 'status' : true}
+      const rutas = await Carretera.find().where(query).distinct('ruta');
+      res.json(rutas);
+    },
     getTrazoByStudy: async(req, res) =>{
       var data = req.query;
       var year = data.anio;
@@ -89,7 +91,7 @@ var APIs = {
       var needInfo = data.needInfo;
       var tramo = data.tramo;
 
-      var red = null;
+      var red;
       const road = await Carretera.find({'tramo':tramo},{"red": 1});
       if (road[0]) {
         red = road[0].red;
@@ -125,6 +127,279 @@ var APIs = {
       res.json(result);
       
     },
+    getByRoad: async(req, res) => {
+      var tramo = req.query.tramo;
+      var sentido = req.query.sentido;
+      
+      const kms = await PaletasKm.find({"tramo": tramo, "sentido" : parseInt(sentido)}).sort("cadGeo"); 
+      for (const value of kms) {
+        value._doc.descripcion = value._doc.descripcion.replace("Poste ", "");
+      }
+      res.json(kms);
+    },
+    getImgs: async(req, res) => {
+      var tramo = req.query.tramo;
+      var sentido = req.query.sentido;
+      var carril = req.query.carril;
+      var year = req.query.anio;
+
+      const imagenes = await Imagenes.find({"tramo": tramo, "sentido" : parseInt(sentido)}).sort("cadGeo");
+      var img = [];
+      for (const value of imagenes) {
+        img.push(value._doc.imgCen.replace("JPEG", "jpeg"));
+      }
+      var result = [img]
+      res.json(result);
+    },
+    getNearestPoint: async(req, res) => {
+      var tramo = req.query.tramo;
+      var sentido = parseInt(req.query.sentido);
+      var carril = parseInt(req.query.carril);
+      var lng = parseFloat(req.query.lng);
+      var lat = parseFloat(req.query.lat);
+
+      var maxDistance = 200;
+
+      var cond = {"tramo": tramo, "sentido" : sentido, "carril": carril};
+      var loc = { center: [lng, lat], maxDistance: maxDistance };
+
+      const imagenes = await History.find(cond).where('loc').nearSphere(loc).limit(1);
+
+      var info = [];
+      if (imagenes) {
+        info = [
+          imagenes[0]._doc.de_cad,
+          imagenes[0]._doc.latitud,
+          imagenes[0]._doc.longitud,
+
+        ]
+      }
+      res.json(info);
+
+    },
+    getNearestPointComp: async(req, res) => {
+      var tramo = req.query.tramo;
+      var sentido = parseInt(req.query.sentido);
+      var carril = parseInt(req.query.carril);
+      var lng = parseFloat(req.query.lng);
+      var lat = parseFloat(req.query.lat);
+
+      var maxDistance = 20;
+
+      var cond = {"tramo": tramo, "sentido" : sentido, "carril": carril};
+      var loc = { center: [lng, lat], maxDistance: maxDistance };
+
+      const imagenes = await History.find(cond).where('loc').nearSphere(loc).limit(1);
+
+      var info = [];
+      if (imagenes) {
+        info = [
+          imagenes[0]._doc.de_cad,
+          imagenes[0]._doc.latitud,
+          imagenes[0]._doc.longitud,
+
+        ]
+      }
+      res.json(info);
+
+    },
+    goToKm: async(req, res) => {
+      var tramo = req.query.tramo;
+      var sentido = parseInt(req.query.sentido);
+      var carril = parseInt(req.query.carril);
+      var cad = req.query.cad;
+      var de_cad = await APIs.formatCad(cad)
+      cad = cad.replace("+","");
+
+      var cond = {"tramo": tramo, "sentido" : sentido, "carril": carril, "de_cad": de_cad};
+
+      const result = await History.find(cond);
+
+      if (result.length == 0) {
+        result = await History.find({"tramo": tramo, "sentido" : sentido, "carril": carril}).where('cadReal').gt(parseFloat(cadenamiento)).sort("carretera").limit(10);
+      }
+      var info = [];
+      if (result && result[0]) {
+        info = [
+          result[0]._doc.de_cad,
+          result[0]._doc.latitud,
+          result[0]._doc.longitud,
+
+        ]
+      }
+      res.json(info);
+
+    },
+    getInfoChart: async(req, res) => {
+      var study = req.query.study;
+      var type  = req.query.type;
+      var years = req.query.years;
+      var road = req.query.road;
+      var carril = parseInt(req.query.carril);
+      var sentido = parseInt(req.query.sentido);
+
+      var cond = {"tramo": road, "sentido": sentido, "carril": carril};
+      var condYear = [];
+      var condYearObj = {};
+
+      if (years == "all") {
+        for (var i = 2021; i > 2016; i--) {
+          condYear.push(Proceso.getStudyVar(study, i));
+          condYearObj[Proceso.getStudyVar(study, i)] = 1;
+        }
+      } else {
+        var tmpyears = years.split(",")
+        for (const y of tmpyears) {
+          condYear.push(Proceso.getStudyVar(study, y))
+          condYearObj[Proceso.getStudyVar(study, y)] = 1;
+        }
+      }
+      var fields = condYearObj;
+      fields.de_cad = 1;
+      var records = await History.find(cond,fields).sort("de_cad_geo");
+      var segmentos = await Proceso.splitToKM2(records, true);
+      
+      var red;
+      var road = await Carretera.find({tramo: road}, {"red": 1})
+      if(road[0]){
+        red = road[0].red;
+      }
+      var result = {};
+      condYear = condYear.sort();
+      for (const year of condYear) {
+        var bueno = 0; var aceptable = 0; var no_aceptable = 0;
+        var segmentos2 = Proceso.promedios(segmentos,year,study.toUpperCase(),red);
+        for (const seg of segmentos2) {
+          var prom  = seg.promedio;
+          var ev = await APIs.getValidacion(study, prom, red);
+          if (ev == "Bueno") {
+            bueno++
+          } else if (ev == "Aceptable") {
+            aceptable++
+          } else if (ev == "No_Aceptable") {
+            no_aceptable++
+          }
+        }
+        result[year] = {"bueno": bueno, "aceptable": aceptable, "no_aceptable": no_aceptable}
+      }
+      var all1 = [study.toUpperCase(), "Bueno", "Aceptable", "No Aceptable"];
+      var all2 = [];
+      for (const value of Object.keys(result)) {
+        var val = result[value];
+        var toreplace = study == "det" ? "det_" : study+"_promedio_";
+        all2 = [value.replace(toreplace, ""), val.bueno, val.aceptable, val.no_aceptable];
+      }
+      var all = [all1, all2]
+      res.json(all);
+    },
+    getInfoMap: async(req, res) => {
+      var year = req.query.year;
+      var study = req.query.study;
+      var sentido = parseInt(req.query.sentido);
+      var carril = parseInt(req.query.carril);
+      var type  = req.query.type;
+      var tramo = req.query.tramo;
+
+      var red;
+      var road = await Carretera.find({tramo: tramo}, {"red": 1})
+      if(road[0]){
+        red = road[0].red;
+      }
+      var var_prom = await Proceso.getStudyVar(study, year, type);
+      var cond = {tramo: tramo, sentido: sentido, carril: carril}
+      var get = {'de_cad': 1}
+      get[var_prom] = 1;
+      get.latitud = 1;
+      get.longitud = 1;
+      const rec = await History.find(cond, get).sort("de_cad_geo");
+      var segmentos;
+      if (study !== "tdpa" && study !== "tipo_pavimento") {
+        segmentos = await Proceso.splitToKM2(rec, true);
+        segmentos = await Proceso.promedios(segmentos, var_prom, study.toUpperCase(), red);
+      } else {
+        segmentos = await Proceso.splitToSegment(rec, var_prom);
+      }
+      
+      segmentos = await Proceso.formatPaths(segmentos);
+      res.json(segmentos);
+
+    },
+    getResumenInfo: async(req, res) => {
+      var year = req.query.year;
+      var study = req.query.study;
+      var sentido = parseInt(req.query.sentido);
+      var carril = parseInt(req.query.carril);
+      var tramo = req.query.tramo;
+
+      var var_prom = await Proceso.getStudyVar(study, year);
+      var cond = {tramo: tramo, sentido: sentido, carril: carril}
+      var get = {'de_cad': 1, 'latitud' : 1, 'longitud' : 1}
+      get[var_prom] = 1;
+      const rec = await History.find(cond, get).sort("de_cad_geo");
+
+      var red;
+      var road = await Carretera.find({tramo: tramo}, {"red": 1})
+      if(road[0]){
+        red = road[0].red;
+      }
+
+      var all = [];
+      var pushup = new Object();
+      for (const value of Object.keys(rec)) {
+        var x = rec[value];
+        var prom = x._doc[var_prom];
+        var ev = await APIs.getValidacion(study, prom, red)
+        pushup = {
+          "cad": x._doc['de_cad'],
+          "latitud": x._doc['latitud'],
+          "longitud": x._doc['longitud'],
+          "promedio": study === 'det' ? prom*100 : prom,
+          "evaluacion": (prom != "NO_DATA" && prom != 0 && prom != null) ? ev : "NO_DATA"
+        }
+        all.push(pushup);
+      }
+      
+      res.json(all);
+
+    },
+    getTrazo: async(req, res) =>{
+      var data = req.query;
+      var year = data.anio;
+      var sentido = parseInt(data.sentido);
+      var needInfo = data.needInfo;
+      var tramo = data.tramo;
+      var carril = parseInt(data.carril);
+
+      const trazo = await History.find({'tramo':tramo,'sentido':sentido,'carril':carril}).sort('de_cad_geo');
+
+      var red;
+      const road = await Carretera.find({'tramo':tramo},{"red": 1});
+      if (road[0]) {
+        red = road[0].red;
+      }
+      
+      var paths = [];
+      var info = []
+      for (const value of trazo) {
+        paths.push([value._doc['longitud'], value._doc['latitud']]);
+        if (needInfo) {
+          var promedios = await APIs.validateProm(value._doc,year,red);
+          var tmpInfo = {
+            "cadenamiento" : value._doc["de_cad"],
+            "latitud" : value._doc['latitud'].toFixed(6),
+            "longitud" : value._doc['longitud'].toFixed(6),
+            "promedios" : promedios
+          }
+          info.push(tmpInfo);
+        }
+      }
+      var tmp = [{"evaluacion": "TRAZO", "paths": paths}]
+      var result = [tmp];
+      result.push(info)
+      res.json(result);
+      
+    },
+    //APIs Complementarias
     validateProm: async(info, year, red) => {
       var newData = {};
       var promVal;
@@ -165,15 +440,55 @@ var APIs = {
 
       return newData;
     },
-    getByRoad: async(req, res) => {
-      var tramo = req.query.tramo;
-      var sentido = req.query.sentido;
-      
-      const kms = await PaletasKm.find({"tramo": tramo, "sentido" : parseInt(sentido)}).sort("cadGeo"); 
-      for (const value of kms) {
-        value._doc.descripcion = value._doc.descripcion.replace("Poste ", "");
+    getValidacion: async(study, prom, red) => {
+      var ev = "";
+      switch (study) {
+        case 'iri':
+          ev = Validacion.IRI(prom, red);
+          break;
+        case 'pr':
+          ev = Validacion.PR(prom, red);
+          break;
+        case 'mac':
+          ev = Validacion.MAC(prom, red);
+          break;
+        case 'det':
+          ev = Validacion.DET(prom, red);
+          break;
+        case 'friccion':
+          ev = Validacion.FR(prom);
+          break;
+        case 'deflexiones':
+          ev = Validacion.DEF(prom, red);
+          break;
+        case 'irap':
+          ev = Validacion.IRAP(prom);
+          break;
+        default:
+          ev = null;
+          break;
       }
-      res.json(kms);
+  
+      return ev;
+    },
+    formatCad: async(cad) => {
+      var len = cad.length;
+      var cadenamiento = "";
+      if (len == 1) {
+        cadenamiento = "0+00"+cad;
+      } else if (len == 2) {
+        cadenamiento = "0+0"+cad;
+      } else if (len == 3) {
+        cadenamiento = "0+"+cad;
+      } else if (len > 4) {
+        var tmp = len - 3;
+        var newstring = cad.substring(tmp);
+        var newstring2 = cad.substring(0, tmp);
+        cadenamiento = newstring2+"+"+newstring;        
+      } else {
+        cadenamiento = cad;
+      }
+      return cadenamiento;
     }
 }
 
