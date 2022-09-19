@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node ./bin/www",
     "serve": "nodemon app.js",
-    "debug": "nodemon --inspect app.js"
+    "debug": "nodemon --inspect app.js",
+    "forever": "forever start app.js"
   },
   "dependencies": {
     "cookie-parser": "~1.4.4",
