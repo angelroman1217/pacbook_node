@@ -13,15 +13,19 @@ const Rangos = require('./Rangos');
 var APIs = {
     //APIs Principales
     mapByEdo: async(req, res) => {
-      var edo = req.query.edo
-      var ruta = req.query.ruta
-      var js = {
-        autopistas  : await APIs.getInfoRoad(edo, "A", ruta),
-        corredores  : await APIs.getInfoRoad(edo, "C", ruta),
-        basicas     : await APIs.getInfoRoad(edo, "B", ruta),
-        secundarias : await APIs.getInfoRoad(edo, "S", ruta)
-      };
-      res.json(js) 
+      try {
+        var edo = req.query.edo
+        var ruta = req.query.ruta
+        var js = {
+          autopistas  : await APIs.getInfoRoad(edo, "A", ruta),
+          corredores  : await APIs.getInfoRoad(edo, "C", ruta),
+          basicas     : await APIs.getInfoRoad(edo, "B", ruta),
+          secundarias : await APIs.getInfoRoad(edo, "S", ruta)
+        };
+        res.json(js)         
+      } catch (err) {
+        console.log(err);
+      }
     },
     getInfoRoad: async(edo, red, ruta) => {
       const query = {'estado' : edo, 'red' : red, 'status' : true}
@@ -76,10 +80,14 @@ var APIs = {
 
     },
     getRutasByEdo: async(req, res) => {
-      var edo = req.query.edo
-      const query = {'estado' : edo, 'status' : true}
-      const rutas = await Carretera.find().where(query).distinct('ruta');
-      res.json(rutas);
+      try {
+        var edo = req.query.edo
+        const query = {'estado' : edo, 'status' : true}
+        const rutas = await Carretera.find().where(query).distinct('ruta');
+        res.json(rutas);        
+      } catch (err) {
+        console.log(err)
+      }
     },
     getTrazoByStudy: async(req, res) =>{
       var data = req.query;
@@ -125,6 +133,7 @@ var APIs = {
       var result = [segmentos];
       result.push(info)
       res.json(result);
+      res.end();
       
     },
     getByRoad: async(req, res) => {
@@ -204,30 +213,34 @@ var APIs = {
 
     },
     goToKm: async(req, res) => {
-      var tramo = req.query.tramo;
-      var sentido = parseInt(req.query.sentido);
-      var carril = parseInt(req.query.carril);
-      var cad = req.query.cad;
-      var de_cad = await APIs.formatCad(cad)
-      cad = cad.replace("+","");
+      try {
+        var tramo = req.query.tramo;
+        var sentido = parseInt(req.query.sentido);
+        var carril = parseInt(req.query.carril);
+        var cad = req.query.cad;
+        var de_cad = await APIs.formatCad(cad)
+        cad = cad.replace("+","");
 
-      var cond = {"tramo": tramo, "sentido" : sentido, "carril": carril, "de_cad": de_cad};
+        var cond = {"tramo": tramo, "sentido" : sentido, "carril": carril, "de_cad": de_cad};
 
-      const result = await History.find(cond);
+        const result = await History.find(cond);
 
-      if (result.length == 0) {
-        result = await History.find({"tramo": tramo, "sentido" : sentido, "carril": carril}).where('cadReal').gt(parseFloat(cadenamiento)).sort("carretera").limit(10);
+        if (result.length == 0) {
+          result = await History.find({"tramo": tramo, "sentido" : sentido, "carril": carril}).where('cadReal').gt(parseFloat(cadenamiento)).sort("carretera").limit(10);
+        }
+        var info = [];
+        if (result && result[0]) {
+          info = [
+            result[0]._doc.de_cad,
+            result[0]._doc.latitud,
+            result[0]._doc.longitud,
+
+          ]
+        }
+        res.json(info);        
+      } catch (err) {
+        console.log(err)
       }
-      var info = [];
-      if (result && result[0]) {
-        info = [
-          result[0]._doc.de_cad,
-          result[0]._doc.latitud,
-          result[0]._doc.longitud,
-
-        ]
-      }
-      res.json(info);
 
     },
     getInfoChart: async(req, res) => {
@@ -480,7 +493,7 @@ var APIs = {
         cadenamiento = "0+0"+cad;
       } else if (len == 3) {
         cadenamiento = "0+"+cad;
-      } else if (len > 4) {
+      } else if (len >= 4) {
         var tmp = len - 3;
         var newstring = cad.substring(tmp);
         var newstring2 = cad.substring(0, tmp);

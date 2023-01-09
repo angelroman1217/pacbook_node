@@ -92,7 +92,8 @@ var Process = {
         count_rows += ((!drio) ? 0 : 1);
       }
       
-      var prom = (count_rows>1) ? Process.fmtNumLikePHP(parseFloat(sum/count_rows)) : "NO_DATA";
+      sum = parseFloat(sum.toFixed(10));
+      var prom = (count_rows>1) ? Process.fmtNumLikePHP(parseFloat((sum/count_rows).toFixed(2)))  : "NO_DATA";
       prom = (sum == 0)? 0 : prom;
       //desviazion estandar 
       var variante = 0;
@@ -118,11 +119,14 @@ var Process = {
           vcaract = (desviacion_st != null) ? Process.fmtNumLikePHP(parseFloat(((prom + desviacion_st) * caracteristico).toFixed(2))):null
         }
       }
+      if (rubro === "DET" && prom == "NO_DATA") {
+        prom = 0;        
+      }
       pushup = ({
         "km": parseInt(km),
-        "promedio": rubro === 'DET' ? prom*100 : prom,
+        "promedio": rubro === 'DET' ? Math.round(prom*100) : prom,
         "evaluacion": (prom != "NO_DATA" && prom != 0) ? validacion[rubro](prom,red) : "NO_DATA",
-        "vcaract": (vcaract != null)? rubro === 'DET' ? vcaract*100 : vcaract : "NO_DATA",
+        "vcaract": (vcaract != null)? rubro === 'DET' ? Math.round(vcaract*100) : vcaract : "NO_DATA",
         "evaluacion_vcaract": (vcaract != null)? validacion[rubro](vcaract,red) : "NO_DATA",        
         "paths": data_row
       });
